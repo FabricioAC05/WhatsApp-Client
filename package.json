@@ -17,6 +17,7 @@
     "react-dom": "^18.2.0",
     "react-flow": "^1.0.3",
     "react-flow-renderer": "^10.3.17",
+    "react-hot-toast": "^2.4.1",
     "react-scripts": "5.0.1",
     "reactflow": "^11.10.1",
     "web-vitals": "^2.1.4"

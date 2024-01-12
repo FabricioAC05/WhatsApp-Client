@@ -1,3 +1,5 @@
+//Flowchart.jsx
+
 import React, { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
     MiniMap,
@@ -11,6 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import CustomEdge from './ButtonEdge.tsx';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 
 const EditableNode = ({ id, data }) => {
     const [label, setLabel] = useState(data.label);
@@ -30,16 +33,36 @@ const EditableNode = ({ id, data }) => {
     );
 };
 
+const updateNodeConfig = (nodes, edges) => {
+    axios.post('http://localhost:3001/api/update-nodes', { nodes, edges })
+        .then(response => {
+            toast.success('Configuración de nodos y conexiones actualizada!');
+        })
+        .catch(error => {
+            console.error('Error al actualizar nodos y conexiones:', error);
+            toast.error('Error al actualizar nodos y conexiones.');
+        });
+};
+
+
+
+
+
+
+
 
 const OptionsNode = ({ id, data, onChange }) => {
     const handleChange = (e) => {
         const newText = e.target.value;
-        // Llama a la función onChange que actualizará el estado global de los nodos
         onChange(id, newText);
     };
 
+    // Extraer el número del nodo del ID
+    const optionNumber = id.split('_').pop();
+
     return (
         <div style={{ border: '1px solid #777', padding: '10px', background: 'white' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Option {data.order}</div>
             <input type="text" value={data.text} onChange={handleChange} />
             <Handle type="target" position="top" />
             <Handle type="source" position="bottom" />
@@ -48,34 +71,40 @@ const OptionsNode = ({ id, data, onChange }) => {
 };
 
 
-
-
-
-
-
 // Definir nodeTypes y edgeTypes fuera del componente
 const edgeTypes = {
     custom: CustomEdge,
 };
 
+const nodeTypes = {
+    editableNode: EditableNode,
+    optionsNode: OptionsNode, // Assuming OptionsNode is also a component like EditableNode
+};
 
 export default function Flow() {
 
-
-
-
-
+    const handleSave = () => {
+        updateNodeConfig(nodes, edges);
+    };
+    
 
     const addOptionsNode = () => {
+        // Contar los nodos de opción que ya están conectados a un nodo de menú
+        let optionsNodeCount = 0;
+        nodes.forEach((node) => {
+            if (node.type === 'optionsNode' && edges.some(edge => edge.source === node.id || edge.target === node.id)) {
+                optionsNodeCount++;
+            }
+        });
+
         const newNode = {
             id: `options_node_${nodes.length + 1}`,
             type: 'optionsNode',
             position: { x: 250, y: 250 },
-            data: { text: '', tipo: 'optionsNode' } // Asegúrate de que el tipo sea 'optionsNode'
+            data: { text: '', tipo: 'optionsNode', order: optionsNodeCount + 1 } // Agregar propiedad 'order'
         };
         setNodes((currentNodes) => [...currentNodes, newNode]);
     };
-
 
 
     const [nodes, setNodes] = useState([
@@ -84,10 +113,7 @@ export default function Flow() {
         { id: '3', position: { x: 50, y: 50 }, data: { label: 'Menu', tipo: 'menu' } },
     ]);
 
-
-
     const [edges, setEdges] = useState([]);
-
 
     const onConnect = useCallback((params) => {
         // Asegúrate de que los bordes nuevos usen el tipo 'custom'
@@ -99,6 +125,7 @@ export default function Flow() {
         const menuNode = nodes.find(node => node.data.tipo === 'menu');
         if (!botNode || !menuNode) {
             console.error("Nodo 'BotName' o 'Menu' no encontrado.");
+            toast.error("Nodo 'BotName' no encontrado.");
             return;
         }
 
@@ -113,8 +140,14 @@ export default function Flow() {
         };
 
         axios.post('http://localhost:3001/api/configuracion', configuracionBot)
-            .then(response => console.log(response.data))
-            .catch(error => console.error('Error:', error));
+            .then(response => {
+                console.log(response.data);
+                toast.success('Cambios guardados con éxito!');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                toast.error('Error al guardar los cambios.');
+            });
     }, [nodes]);
 
 
@@ -128,6 +161,7 @@ export default function Flow() {
 
         if (!startNode) {
             console.log("Nodo 'Start' no encontrado.");
+            toast.error("Nodo 'Start' no encontrado.");
             return;
         }
 
@@ -190,6 +224,25 @@ export default function Flow() {
         }));
     }, [setNodes]);
 
+
+
+
+    useEffect(() => {
+        axios.get('http://localhost:3001/api/get-nodes')
+            .then(response => {
+                const { nodes, edges } = response.data;
+                if (nodes && edges) {
+                    setNodes(nodes);
+                    setEdges(edges);
+                }
+            })
+            .catch(error => {
+                console.error('Error al cargar nodos y conexiones:', error);
+            });
+    }, []);
+
+
+
     return (
         <div style={{ width: '100vw', height: '100vh' }}>
             <div style={{ position: 'absolute', zIndex: 4, display: 'flex' }}>
@@ -197,7 +250,7 @@ export default function Flow() {
                 <button onClick={addOptionsNode}>Agregar Nodo Options</button>
             </div>
             <div style={{ position: 'absolute', right: 0, top: 0, zIndex: 4 }}>
-                <button onClick={saveAllChangesLocally} style={{ marginRight: '80px' }}>Guardar todos los cambios</button>
+                <button onClick={handleSave}>Guardar Cambios</button>
                 <button onClick={saveChanges}>Enviar Cambios</button>
             </div>
 
