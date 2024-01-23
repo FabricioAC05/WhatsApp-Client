@@ -23,10 +23,14 @@ const EditableNode = ({ id, data }) => {
         data.onChange(id, evt.target.value);
     };
 
+    // Agrega esta línea para acceder a la función de eliminación
+    const { onDelete } = data;
+
     return (
         <div style={{ border: '1px solid #777', padding: '10px', background: 'white' }}>
             <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>BotName</div>
             <input type="text" value={label} onChange={handleInputChange} />
+            <button onClick={() => onDelete(id)}>Eliminar</button>
             <Handle type="target" position="top" />
             <Handle type="source" position="bottom" />
         </div>
@@ -43,14 +47,6 @@ const updateNodeConfig = (nodes, edges) => {
             toast.error('Error al actualizar nodos y conexiones.');
         });
 };
-
-
-
-
-
-
-
-
 const OptionsNode = ({ id, data, onChange }) => {
     const handleChange = (e) => {
         const newText = e.target.value;
@@ -71,6 +67,9 @@ const OptionsNode = ({ id, data, onChange }) => {
 };
 
 
+
+
+
 // Definir nodeTypes y edgeTypes fuera del componente
 const edgeTypes = {
     custom: CustomEdge,
@@ -81,12 +80,18 @@ const nodeTypes = {
     optionsNode: OptionsNode, // Assuming OptionsNode is also a component like EditableNode
 };
 
+
+
 export default function Flow() {
+
+    const handleDeleteNode = useCallback((nodeId) => {
+        setNodes((currentNodes) => currentNodes.filter((node) => node.id !== nodeId));
+    }, []);
 
     const handleSave = () => {
         updateNodeConfig(nodes, edges);
     };
-    
+
 
     const addOptionsNode = () => {
         // Contar los nodos de opción que ya están conectados a un nodo de menú
@@ -174,7 +179,12 @@ export default function Flow() {
         const newNode = {
             id: `node_${nodes.length + 1}`,
             position: newPosition,
-            data: { label: 'Nuevo Nodo', tipo: 'bot', onChange: handleNodeLabelChange },
+            data: {
+                label: 'Nuevo Nodo',
+                tipo: 'bot',
+                onChange: handleNodeLabelChange,
+                onDelete: handleDeleteNode  // Asegúrate de pasar la función aquí
+            },
             type: 'editableNode',
         };
         setNodes((nds) => nds.concat(newNode));
@@ -232,7 +242,12 @@ export default function Flow() {
             .then(response => {
                 const { nodes, edges } = response.data;
                 if (nodes && edges) {
-                    setNodes(nodes);
+                    // Agrega onDelete a cada nodo
+                    const updatedNodes = nodes.map(node => ({
+                        ...node,
+                        data: { ...node.data, onDelete: handleDeleteNode }
+                    }));
+                    setNodes(updatedNodes);
                     setEdges(edges);
                 }
             })
@@ -240,6 +255,7 @@ export default function Flow() {
                 console.error('Error al cargar nodos y conexiones:', error);
             });
     }, []);
+
 
 
 
